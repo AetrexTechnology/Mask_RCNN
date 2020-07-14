@@ -106,7 +106,7 @@ class BalloonDataset(utils.Dataset):
         #       ... more regions ...
         #   },
         #   'size': 100202
-        # }
+        # }    /Users/vaneesh_k/PycharmProjects/Mask_RCNN/datasets/balloon/train/via_region_data.json
         # We mostly care about the x and y coordinates of each region
         # Note: In VIA 2.0, regions was changed from a dict to a list.
         annotations = json.load(open(os.path.join(dataset_dir, "via_region_data.json")))
