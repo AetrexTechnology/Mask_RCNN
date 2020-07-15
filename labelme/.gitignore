@@ -8,3 +8,4 @@ temp/
 *.png
 *.json
 *.pyc
+temp_*

@@ -4,8 +4,12 @@ import json
 import os
 
 import cv2
-import numpy
-from PIL import Image, ImageDraw
+import numpy as np
+from PIL import ExifTags, Image, ImageDraw
+
+LEFT_FOOT_LABEL = 1
+RIGHT_FOOT_LABEL = 2
+COIN_LABEL = 3
 
 
 def get_args():
@@ -75,33 +79,55 @@ def generate_mask(annotated_data, output_dir, image_dir, json_filename, image_ex
     """
     image_path = os.path.join(image_dir, json_filename.replace("json", image_ext))
     img = Image.open(image_path)
-    width, height = img.size
-    if width > height:
-        img = img.rotate(-90, expand=True)
-    width, height = img.size
-    print(width, height)
+    # rotate image using metadata
+    # print(img.size)
+    for orientation in ExifTags.TAGS.keys():
+        if ExifTags.TAGS[orientation] == "Orientation":
+            break
+    if img._getexif() is not None:
+        exif = dict(img._getexif().items())
 
+        if exif[orientation] == 3:
+            img = img.rotate(180, expand=True)
+        elif exif[orientation] == 6:
+            img = img.rotate(270, expand=True)
+        elif exif[orientation] == 8:
+            img = img.rotate(90, expand=True)
+        # print(img.size)
+
+    width, height = img.size
     mask = Image.new("L", (width, height), 0)
     for label, polygon in annotated_data.items():
         if label == "left foot":
-            ImageDraw.Draw(mask).polygon(polygon, outline=125, fill=125)
+            ImageDraw.Draw(mask).polygon(polygon, outline=LEFT_FOOT_LABEL, fill=LEFT_FOOT_LABEL)
         else:
-            ImageDraw.Draw(mask).polygon(polygon, outline=255, fill=255)
+            ImageDraw.Draw(mask).polygon(polygon, outline=RIGHT_FOOT_LABEL, fill=RIGHT_FOOT_LABEL)
 
     os.makedirs(output_dir, exist_ok=True)
     output_path = os.path.join(output_dir, json_filename.replace("json", mask_ext))
     mask.save(output_path)
 
-    cv_img = numpy.array(img)
-    cv_mask = numpy.array(mask)
+    cv_img = np.array(img)
+    cv_img = cv2.cvtColor(cv_img, cv2.COLOR_RGB2BGR)
+    cv_img_original = cv_img.copy()
+    cv_mask = np.array(mask)
     print(cv_img.shape, cv_mask.shape)
-    cv_img[:, :, 1][cv_mask == 125] = 0
-    cv_img[:, :, 2][cv_mask == 125] = 255
-    cv_img[:, :, 1][cv_mask == 255] = 255
-    cv_img[:, :, 2][cv_mask == 255] = 0
-    small = cv2.resize(cv_img, None, fx=0.3, fy=0.3)
+    cv_img[:, :, 1][cv_mask == LEFT_FOOT_LABEL] = 0
+    cv_img[:, :, 2][cv_mask == LEFT_FOOT_LABEL] = 255
+    cv_img[:, :, 1][cv_mask == RIGHT_FOOT_LABEL] = 255
+    cv_img[:, :, 2][cv_mask == RIGHT_FOOT_LABEL] = 0
+    if cv_mask.shape[0] > 4000:
+        small = cv2.resize(cv_img, None, fx=0.3, fy=0.3)
+        o_small = cv2.resize(cv_img_original, None, fx=0.3, fy=0.3)
+    elif cv_mask.shape[0] > 2000:
+        small = cv2.resize(cv_img, None, fx=0.5, fy=0.5)
+        o_small = cv2.resize(cv_img_original, None, fx=0.5, fy=0.5)
+    else:
+        small = cv2.resize(cv_img, None, fx=0.7, fy=0.7)
+        o_small = cv2.resize(cv_img_original, None, fx=0.7, fy=0.7)
     cv2.imshow("overlay_img", small)
-    k = cv2.waitKey(0)
+    cv2.imshow("image", o_small)
+    k = cv2.waitKey(100)
     if k == ord("q"):
         quit()
 
