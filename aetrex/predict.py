@@ -133,7 +133,7 @@ with tf.device(DEVICE):
 # weights_path = "/path/to/mask_rcnn_balloon.h5"
 
 # Or, load the last model you trained
-weights_path = '/Users/vaneesh_k/PycharmProjects/Mask_RCNN/mask_rcnn_balloon.h5'  # model.find_last()
+weights_path = '/Users/vaneesh_k/PycharmProjects/Mask_RCNN/mask_rcnn_aetrex_0200.h5'  # model.find_last()
 
 # Load weights
 print("Loading weights ", weights_path)

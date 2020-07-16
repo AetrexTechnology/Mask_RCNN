@@ -25,6 +25,10 @@ import datetime
 import numpy as np
 import skimage.draw
 
+import os
+
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+
 # Root directory of the project
 ROOT_DIR = os.path.abspath("../")
 
@@ -167,7 +171,6 @@ def train(model):
     dataset_val.load_aetrex(args.dataset, "val")
     dataset_val.prepare()
 
-    # *** This training schedule is an example. Update to your needs ***
     # Since we're using a very small dataset, and starting from
     # COCO trained weights, we don't need to train too long. Also,
     # no need to train all layers, just the heads should do it.
@@ -187,7 +190,7 @@ if __name__ == '__main__':
 
     # Parse command line arguments
     parser = argparse.ArgumentParser(
-        description='Train Mask R-CNN to detect aetrex.')
+        description='Train Mask R-CNN to detect aetrex dataset feet.')
     parser.add_argument("command",
                         metavar="<command>",
                         help="'train' or 'splash'")
@@ -206,9 +209,6 @@ if __name__ == '__main__':
     # Validate arguments
     if args.command == "train":
         assert args.dataset, "Argument --dataset is required for training"
-    elif args.command == "splash":
-        assert args.image or args.video, \
-            "Provide --image or --video to apply color splash"
 
     print("Weights: ", args.weights)
     print("Dataset: ", args.dataset)
