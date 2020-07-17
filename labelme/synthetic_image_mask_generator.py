@@ -178,16 +178,19 @@ def create_polygon_coordinates_from_mask(mask, image):
     # cv2.drawContours(image, contours, -1, (0, 255, 0), 6)
 
     # sort contours by area so that coin contour comes at top
-    sorted_contours = sorted(contours, key=lambda x: cv2.contourArea(x))
+    # only taknig last 3 contours some times small false + contours are found
+    sorted_contours = sorted(contours, key=lambda x: cv2.contourArea(x))[-3:]
 
     for idx, contour in enumerate(sorted_contours):
         if idx == 0:
-            all_x_coin_coordinates = contour[:, 0, 0][0::20]
-            all_y_coin_coordinates = contour[:, 0, 1][0::20]
+            # skiiping coordinates by 15 else it will add many points which are redundant
+            all_x_coin_coordinates = contour[:, 0, 0][0::15]
+            all_y_coin_coordinates = contour[:, 0, 1][0::15]
 
         else:
             # if true that means its left foot cordinates
             if contour[0][0][0] < sorted_contours[idx + 1][0][0][0]:
+                # skiiping coordinates by 60 else it will add many points(1500 aprox and we need only 20-30) which are redundant
                 all_x_left_coordinates = contour[:, 0, 0][0::60]
                 all_y_left_coordinates = contour[:, 0, 1][0::60]
 
@@ -202,6 +205,7 @@ def create_polygon_coordinates_from_mask(mask, image):
                 all_x_left_coordinates = sorted_contours[idx + 1][:, 0, 0][0::60]
                 all_y_left_coordinates = sorted_contours[idx + 1][:, 0, 1][0::60]
             break
+
     return (all_x_coin_coordinates, all_y_coin_coordinates, all_x_left_coordinates, all_y_left_coordinates,
             all_x_right_coordinates, all_y_right_coordinates)
 
@@ -236,10 +240,10 @@ def create_annotated_json(json_template, image_shape, output_dir, file_id, coord
 
 def main():
     args = get_args()
-    mask_filename_list = get_filename_list(args.mask_dir_name, "png", False)
+    mask_filename_list = get_filename_list(args.mask_dir_name, "jpg", False)
     file_id = 1
     for mask_filename in mask_filename_list:
-        image_path = os.path.join(args.image_dir_name, mask_filename.replace("png", "jpg"))
+        image_path = os.path.join(args.image_dir_name, mask_filename)
         print(image_path)
         image = read_image_using_metadata(image_path)
 

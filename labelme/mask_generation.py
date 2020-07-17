@@ -65,7 +65,7 @@ def read_labelme_annotation(dir_name, filename):
     return annotated_data
 
 
-def generate_mask(annotated_data, output_dir, image_dir, json_filename, image_ext="jpg", mask_ext="png"):
+def generate_mask(annotated_data, output_dir, image_dir, json_filename, image_ext="jpg", mask_ext="jpg"):
     """
     generate mask images (left foot: 125, right foot: 255)
     Args:
@@ -134,7 +134,7 @@ def generate_mask(annotated_data, output_dir, image_dir, json_filename, image_ex
 
 def main():
     args = get_args()
-    json_filename_list = get_filename_list(args.annotation_dir_name, "*", False)
+    json_filename_list = get_filename_list(args.annotation_dir_name, "json", False)
     for json_filename in json_filename_list:
         print(json_filename)
         annotated_data = read_labelme_annotation(args.annotation_dir_name, json_filename)
