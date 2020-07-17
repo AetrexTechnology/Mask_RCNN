@@ -24,6 +24,7 @@ import json
 import datetime
 import numpy as np
 import skimage.draw
+from pathlib import Path
 
 import os
 
@@ -62,7 +63,7 @@ class AetrexConfig(Config):
     IMAGES_PER_GPU = 2
 
     # Number of classes (including background)
-    NUM_CLASSES = 1 + 1 + 1  # Background + foot + foot + coin
+    NUM_CLASSES = 1 + 1 + 1 + 1  # Background + foot + foot + coin
 
     # Number of training steps per epoch
     STEPS_PER_EPOCH = 100
@@ -85,6 +86,7 @@ class AetrexDataset(utils.Dataset):
         # Add classes. We have only 3 classes to add.
         self.add_class("aetrex", 1, "left-foot")
         self.add_class("aetrex", 2, "right-foot")
+        self.add_class("aetrex", 3, "coin")
 
         # Train or validation dataset?
         assert subset in ["train", "val"]
@@ -98,6 +100,11 @@ class AetrexDataset(utils.Dataset):
 
             # Add images
             image_path = os.path.join(dataset_dir, annotations['imagePath'])
+
+            # check if image exists for the json if not then skip it
+            my_file = Path(image_path)
+            if not my_file.is_file():
+                continue
 
             # adding polygons cordinates
             polygons = []
@@ -143,8 +150,8 @@ class AetrexDataset(utils.Dataset):
                 class_ids.append(1)
             elif p["label"] == "right foot":
                 class_ids.append(2)
-            # else:
-            #     class_ids.append(3)  # appending class for coin
+            else:
+                class_ids.append(3)  # appending class for coin
 
         # Return mask, and array of class IDs of each instance.
         class_ids = np.array(class_ids, dtype=np.int32)
