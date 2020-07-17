@@ -1,13 +1,18 @@
+import sys, os
+
+sys.path.append('/Users/vaneesh_k/PycharmProjects/Mask_RCNN/labelme')
+
 import argparse
 import glob
 import os
 import random
-
+import json
 import cv2
 import numpy as np
 from PIL import ExifTags, Image, ImageDraw
 
 from augment import augmenting
+from imantics import Polygons, Mask
 
 LEFT_FOOT_LABEL = 1
 RIGHT_FOOT_LABEL = 2
@@ -21,6 +26,7 @@ def get_args():
     parser.add_argument("--mask_dir_name", type=str, default="mask", required=False)
     parser.add_argument("--coin_dir_name", type=str, default="coin_images", required=False)
     parser.add_argument("--output_dir_name", type=str, default="final_training_data", required=False)
+    parser.add_argument("--annotation_template_name", type=str, default="final_training_data", required=False)
     args = parser.parse_args()
     return args
 
@@ -126,8 +132,8 @@ def generate_syntetic_data(xy_position, image, mask, coin_dir_name, coin_size):
     coin_img, coin_mask = get_coin_data(coin_dir_name=coin_dir_name, coin_size=coin_size, display=False)
     coin_in_image_size = np.zeros(image.shape, np.uint8)
     coin_mask_in_image_size = np.zeros(mask.shape, np.uint8)
-    coin_in_image_size[y : y + coin_img.shape[0], x : x + coin_img.shape[1], :] = coin_img
-    coin_mask_in_image_size[y : y + coin_mask.shape[0], x : x + coin_mask.shape[1]] = coin_mask
+    coin_in_image_size[y: y + coin_img.shape[0], x: x + coin_img.shape[1], :] = coin_img
+    coin_mask_in_image_size[y: y + coin_mask.shape[0], x: x + coin_mask.shape[1]] = coin_mask
     final_image[coin_mask_in_image_size == COIN_LABEL] = coin_in_image_size[coin_mask_in_image_size == COIN_LABEL]
     final_mask = mask + coin_mask_in_image_size
 
@@ -163,7 +169,48 @@ def save_images(output_dir, file_id, image, mask):
     mask_path = os.path.join(mask_dir, str(file_id) + ".png")
     cv2.imwrite(image_path, image)
     cv2.imwrite(mask_path, mask)
+    # saving annotaions for new files
 
+
+def create_polygon_coordinates_from_mask(mask, image):
+    mask[mask > 0] = 255
+    ret, thresh = cv2.threshold(mask, 50, 255, cv2.THRESH_BINARY)
+    contours, hierarchy = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+    cv2.drawContours(image, contours, -1, (0, 255, 0), 6)
+
+    # sort contours by area so that coin contour comes at top
+    sorted_contours = sorted(contours, key=lambda x: cv2.contourArea(x))
+
+    for idx, contour in enumerate(sorted_contours):
+        if idx == 0:
+            all_x_coin_coordinates = contour[:, 0, 0]
+            all_y_coin_coordinates = contour[:, 0, 1]
+
+        else:
+            # if true that means its left foot cordinates
+            if contour[0][0][0] < sorted_contours[idx + 1][0][0][0]:
+                all_x_left_coordinates = contour[:, 0, 0]
+                all_y_left_coordinates = contour[:, 0, 1]
+
+                all_x_right_coordinates = sorted_contours[idx + 1][:, 0, 0]
+                all_y_right_coordinates = sorted_contours[idx + 1][:, 0, 1]
+
+            # then this is right foot coordinates
+            else:
+                all_x_right_coordinates = contour[:, 0, 0]
+                all_y_right_coordinates = contour[:, 0, 1]
+
+                all_x_left_coordinates = sorted_contours[idx + 1][:, 0, 0]
+                all_y_left_coordinates = sorted_contours[idx + 1][:, 0, 1]
+            break
+    cv2.imwrite('./test.jpg', image)
+    return (all_x_coin_coordinates, all_y_coin_coordinates, all_x_left_coordinates, all_y_left_coordinates,
+            all_x_right_coordinates, all_y_right_coordinates)
+
+
+def create_annotated_json(json_template,image_shape,coordinates):
+    annotations = json.load(open("/Users/vaneesh_k/PycharmProjects/Mask_RCNN/labelme/annotation_template.json")) # loading template file
+    print('Done')
 
 def main():
     args = get_args()
@@ -180,16 +227,33 @@ def main():
         # print(mask_path)
         mask = cv2.imread(mask_path, 0)
         margin = w // 10
-        half_image = image[h - w + margin : h - margin, margin : w - margin]
-        half_mask = mask[h - w + margin : h - margin, margin : w - margin]
+        half_image = image[h - w + margin: h - margin, margin: w - margin]
+        half_mask = mask[h - w + margin: h - margin, margin: w - margin]
         print(mask.shape, half_mask.shape)
         coin_position = get_coin_position(mask, coin_size=coin_size)
+
+        # generating full mask and image
         final_image, final_mask = generate_syntetic_data(coin_position, image, mask, args.coin_dir_name, coin_size)
         # display(final_image, final_mask * 85)
+        # creating polygon cordinates
+        (all_x_coin_coordinates, all_y_coin_coordinates, all_x_left_coordinates, all_y_left_coordinates,
+         all_x_right_coordinates, all_y_right_coordinates) = create_polygon_coordinates_from_mask(final_mask,
+                                                                                                  final_image)
+
+        # creating annotations and saving them in json file
+        create_annotated_json()
+
         save_images(args.output_dir_name, file_id, final_image, final_mask)
         file_id += 1
+
+        # generating half image and mask
         coin_position = get_coin_position(half_mask, coin_size=coin_size)
-        final_image, final_mask = generate_syntetic_data(coin_position, half_image, half_mask, args.coin_dir_name, coin_size)
+        final_image, final_mask = generate_syntetic_data(coin_position, half_image, half_mask, args.coin_dir_name,
+                                                         coin_size)
+
+        (all_x_coin_coordinates, all_y_coin_coordinates, all_x_left_coordinates, all_y_left_coordinates,
+         all_x_right_coordinates, all_y_right_coordinates) = create_polygon_coordinates_from_mask(final_mask,
+                                                                                                  final_image)
         # display(final_image, final_mask * 85)
         save_images(args.output_dir_name, file_id, final_image, final_mask)
         file_id += 1

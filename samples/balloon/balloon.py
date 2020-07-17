@@ -105,7 +105,7 @@ class BalloonDataset(utils.Dataset):
         #               'name': 'polygon'}},
         #       ... more regions ...
         #   },
-        #   'size': 100202
+        #   'size': 100202 
         # }
         # We mostly care about the x and y coordinates of each region
         # Note: In VIA 2.0, regions was changed from a dict to a list.
