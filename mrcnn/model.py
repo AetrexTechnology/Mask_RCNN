@@ -25,6 +25,12 @@ import keras.models as KM
 
 from mrcnn import utils
 
+import mlflow.keras
+import mlflow.tensorflow
+
+mlflow.keras.autolog()
+mlflow.tensorflow.autolog()
+
 # Requires TensorFlow 1.3+ and Keras 2.0.8+.
 from distutils.version import LooseVersion
 assert LooseVersion(tf.__version__) >= LooseVersion("1.3")
@@ -2342,6 +2348,7 @@ class MaskRCNN():
                                         histogram_freq=0, write_graph=True, write_images=False),
             keras.callbacks.ModelCheckpoint(self.checkpoint_path,
                                             verbose=0, save_weights_only=True),
+            keras.callbacks.EarlyStopping(patience=10)
         ]
 
         # Add custom callbacks to the list

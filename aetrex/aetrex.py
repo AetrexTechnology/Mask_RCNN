@@ -28,6 +28,13 @@ from pathlib import Path
 
 import os
 
+import mlflow.keras
+import mlflow.tensorflow
+import imgaug
+
+mlflow.keras.autolog()
+mlflow.tensorflow.autolog()
+
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 # Root directory of the project
@@ -182,10 +189,17 @@ def train(model):
     # COCO trained weights, we don't need to train too long. Also,
     # no need to train all layers, just the heads should do it.
     print("Training network heads")
+
+    augmentation = imgaug.augmenters.Sometimes(0.5, [
+        imgaug.augmenters.Fliplr(0.5),
+        imgaug.augmenters.GaussianBlur(sigma=(0.0, 5.0))
+    ])
+
     model.train(dataset_train, dataset_val,
                 learning_rate=config.LEARNING_RATE,
-                epochs=30,
-                layers='heads')
+                epochs=4000,
+                layers='heads',
+                augmentation=augmentation)
 
 
 ############################################################

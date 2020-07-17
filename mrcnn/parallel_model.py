@@ -19,6 +19,12 @@ import keras.layers as KL
 import keras.models as KM
 
 
+import mlflow.keras
+import mlflow.tensorflow
+
+mlflow.keras.autolog()
+mlflow.tensorflow.autolog()
+
 class ParallelModel(KM.Model):
     """Subclasses the standard Keras Model and adds multi-GPU support.
     It works by creating a copy of the model on each GPU. Then it slices
