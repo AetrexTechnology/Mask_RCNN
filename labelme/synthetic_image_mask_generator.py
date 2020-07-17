@@ -165,52 +165,74 @@ def save_images(output_dir, file_id, image, mask):
     mask_dir = os.path.join(output_dir, "masks")
     os.makedirs(image_dir, exist_ok=True)
     os.makedirs(mask_dir, exist_ok=True)
-    image_path = os.path.join(image_dir, str(file_id) + ".png")
-    mask_path = os.path.join(mask_dir, str(file_id) + ".png")
+    image_path = os.path.join(image_dir, str(file_id) + ".jpg")
+    mask_path = os.path.join(mask_dir, str(file_id) + ".jpg")
     cv2.imwrite(image_path, image)
     cv2.imwrite(mask_path, mask)
-    # saving annotaions for new files
 
 
 def create_polygon_coordinates_from_mask(mask, image):
     mask[mask > 0] = 255
     ret, thresh = cv2.threshold(mask, 50, 255, cv2.THRESH_BINARY)
     contours, hierarchy = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
-    cv2.drawContours(image, contours, -1, (0, 255, 0), 6)
+    # cv2.drawContours(image, contours, -1, (0, 255, 0), 6)
 
     # sort contours by area so that coin contour comes at top
     sorted_contours = sorted(contours, key=lambda x: cv2.contourArea(x))
 
     for idx, contour in enumerate(sorted_contours):
         if idx == 0:
-            all_x_coin_coordinates = contour[:, 0, 0]
-            all_y_coin_coordinates = contour[:, 0, 1]
+            all_x_coin_coordinates = contour[:, 0, 0][0::20]
+            all_y_coin_coordinates = contour[:, 0, 1][0::20]
 
         else:
             # if true that means its left foot cordinates
             if contour[0][0][0] < sorted_contours[idx + 1][0][0][0]:
-                all_x_left_coordinates = contour[:, 0, 0]
-                all_y_left_coordinates = contour[:, 0, 1]
+                all_x_left_coordinates = contour[:, 0, 0][0::60]
+                all_y_left_coordinates = contour[:, 0, 1][0::60]
 
-                all_x_right_coordinates = sorted_contours[idx + 1][:, 0, 0]
-                all_y_right_coordinates = sorted_contours[idx + 1][:, 0, 1]
+                all_x_right_coordinates = sorted_contours[idx + 1][:, 0, 0][0::60]
+                all_y_right_coordinates = sorted_contours[idx + 1][:, 0, 1][0::60]
 
             # then this is right foot coordinates
             else:
-                all_x_right_coordinates = contour[:, 0, 0]
-                all_y_right_coordinates = contour[:, 0, 1]
+                all_x_right_coordinates = contour[:, 0, 0][0::60]
+                all_y_right_coordinates = contour[:, 0, 1][0::60]
 
-                all_x_left_coordinates = sorted_contours[idx + 1][:, 0, 0]
-                all_y_left_coordinates = sorted_contours[idx + 1][:, 0, 1]
+                all_x_left_coordinates = sorted_contours[idx + 1][:, 0, 0][0::60]
+                all_y_left_coordinates = sorted_contours[idx + 1][:, 0, 1][0::60]
             break
-    cv2.imwrite('./test.jpg', image)
     return (all_x_coin_coordinates, all_y_coin_coordinates, all_x_left_coordinates, all_y_left_coordinates,
             all_x_right_coordinates, all_y_right_coordinates)
 
 
-def create_annotated_json(json_template,image_shape,coordinates):
-    annotations = json.load(open("/Users/vaneesh_k/PycharmProjects/Mask_RCNN/labelme/annotation_template.json")) # loading template file
-    print('Done')
+def create_annotated_json(json_template, image_shape, output_dir, file_id, coordinates):
+    annotations = json.load(open(json_template))  # loading template file
+
+    for annotation in annotations['shapes']:
+        if annotation['label'] == 'coin':
+            annotation['points'] = [[x, y]
+                                    for x, y in zip(coordinates[0].tolist(), coordinates[1].tolist())]
+
+        elif annotation['label'] == 'left foot':
+            annotation['points'] = [[x, y]
+                                    for x, y in zip(coordinates[2].tolist(), coordinates[3].tolist())]
+            # for right foot
+        else:
+            annotation['points'] = [[x, y]
+                                    for x, y in zip(coordinates[4].tolist(), coordinates[5].tolist())]
+
+    # save the annotation json
+    annotations['imagePath'] = str(file_id) + ".jpg"
+    annotations['imageHeight'] = image_shape[0]
+    annotations['imageWidth'] = image_shape[1]
+    annotations_dir = os.path.join(output_dir, "annotations")
+    os.makedirs(annotations_dir, exist_ok=True)
+    json_path = os.path.join(annotations_dir, str(file_id) + ".json")
+
+    with open(json_path, 'w') as json_file:
+        json.dump(annotations, json_file)
+
 
 def main():
     args = get_args()
@@ -235,13 +257,16 @@ def main():
         # generating full mask and image
         final_image, final_mask = generate_syntetic_data(coin_position, image, mask, args.coin_dir_name, coin_size)
         # display(final_image, final_mask * 85)
+
         # creating polygon cordinates
         (all_x_coin_coordinates, all_y_coin_coordinates, all_x_left_coordinates, all_y_left_coordinates,
          all_x_right_coordinates, all_y_right_coordinates) = create_polygon_coordinates_from_mask(final_mask,
                                                                                                   final_image)
 
         # creating annotations and saving them in json file
-        create_annotated_json()
+        create_annotated_json(args.annotation_template_name, final_image.shape, args.output_dir_name, file_id, (
+            all_x_coin_coordinates, all_y_coin_coordinates, all_x_left_coordinates, all_y_left_coordinates,
+            all_x_right_coordinates, all_y_right_coordinates))
 
         save_images(args.output_dir_name, file_id, final_image, final_mask)
         file_id += 1
@@ -250,10 +275,16 @@ def main():
         coin_position = get_coin_position(half_mask, coin_size=coin_size)
         final_image, final_mask = generate_syntetic_data(coin_position, half_image, half_mask, args.coin_dir_name,
                                                          coin_size)
-
+        # creating annotations file
         (all_x_coin_coordinates, all_y_coin_coordinates, all_x_left_coordinates, all_y_left_coordinates,
          all_x_right_coordinates, all_y_right_coordinates) = create_polygon_coordinates_from_mask(final_mask,
                                                                                                   final_image)
+
+        # creating annotations and saving them in json file
+        create_annotated_json(args.annotation_template_name, final_image.shape, args.output_dir_name, file_id, (
+            all_x_coin_coordinates, all_y_coin_coordinates, all_x_left_coordinates, all_y_left_coordinates,
+            all_x_right_coordinates, all_y_right_coordinates))
+
         # display(final_image, final_mask * 85)
         save_images(args.output_dir_name, file_id, final_image, final_mask)
         file_id += 1
