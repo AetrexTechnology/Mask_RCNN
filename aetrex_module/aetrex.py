@@ -8,13 +8,13 @@ Usage: import the module or run from
        the command line as such:
 
     # Train a new model starting from pre-trained COCO weights
-    python3 aetrex.py train --dataset=/path/to/aetrex/dataset --weights=coco
+    python3 aetrex_module.py train --dataset=/path/to/aetrex_module/dataset --weights=coco
 
     # Resume training a model that you had trained earlier
-    python3 aetrex.py train --dataset=/path/to/aetrex/dataset --weights=last
+    python3 aetrex_module.py train --dataset=/path/to/aetrex_module/dataset --weights=last
 
     # Train a new model starting from ImageNet weights
-    python3 aetrex.py train --dataset=/path/to/aetrex/dataset --weights=imagenet
+    python3 aetrex_module.py train --dataset=/path/to/aetrex_module/dataset --weights=imagenet
 
 """
 import glob
@@ -22,6 +22,7 @@ import os
 import sys
 import json
 import datetime
+import argparse
 import numpy as np
 import skimage.draw
 from pathlib import Path
@@ -59,11 +60,11 @@ DEFAULT_LOGS_DIR = os.path.join(ROOT_DIR, "logs")
 
 
 class AetrexConfig(Config):
-    """Configuration for training on the aetrex  dataset.
+    """Configuration for training on the aetrex_module  dataset.
     Derives from the base Config class and overrides some values.
     """
     # Give the configuration a recognizable name
-    NAME = "aetrex"
+    NAME = "aetrex_module"
 
     # We use a GPU with 12GB memory, which can fit two images.
     # Adjust down if you use a smaller GPU.
@@ -86,14 +87,14 @@ class AetrexConfig(Config):
 class AetrexDataset(utils.Dataset):
 
     def load_aetrex(self, dataset_dir, subset):
-        """Load a subset of the aetrex dataset.
+        """Load a subset of the aetrex_module dataset.
         dataset_dir: Root directory of the dataset.
         subset: Subset to load: train or val
         """
         # Add classes. We have only 3 classes to add.
-        self.add_class("aetrex", 1, "left-foot")
-        self.add_class("aetrex", 2, "right-foot")
-        self.add_class("aetrex", 3, "coin")
+        self.add_class("aetrex_module", 1, "left-foot")
+        self.add_class("aetrex_module", 2, "right-foot")
+        self.add_class("aetrex_module", 3, "coin")
 
         # Train or validation dataset?
         assert subset in ["train", "val"]
@@ -124,7 +125,7 @@ class AetrexDataset(utils.Dataset):
                 polygons.append(polygon)
 
             self.add_image(
-                "aetrex",
+                "aetrex_module",
                 image_id=annotations['imagePath'],  # use file name as a unique image id
                 path=image_path,
                 width=annotations['imageWidth'], height=annotations['imageHeight'],
@@ -137,9 +138,9 @@ class AetrexDataset(utils.Dataset):
             one mask per instance.
         class_ids: a 1D array of class IDs of the instance masks.
         """
-        # If not a aetrex dataset image, delegate to parent class.
+        # If not a aetrex_module dataset image, delegate to parent class.
         image_info = self.image_info[image_id]
-        if image_info["source"] != "aetrex":
+        if image_info["source"] != "aetrex_module":
             return super(self.__class__, self).load_mask(image_id)
 
         # Convert polygons to a bitmap mask of shape
@@ -167,7 +168,7 @@ class AetrexDataset(utils.Dataset):
     def image_reference(self, image_id):
         """Return the path of the image."""
         info = self.image_info[image_id]
-        if info["source"] == "aetrex":
+        if info["source"] == "aetrex_module":
             return info["path"]
         else:
             super(self.__class__, self).image_reference(image_id)
@@ -207,17 +208,17 @@ def train(model):
 ############################################################
 
 if __name__ == '__main__':
-    import argparse
+
 
     # Parse command line arguments
     parser = argparse.ArgumentParser(
-        description='Train Mask R-CNN to detect aetrex dataset feet.')
+        description='Train Mask R-CNN to detect aetrex_module dataset feet.')
     parser.add_argument("command",
                         metavar="<command>",
                         help="'train' or 'splash'")
     parser.add_argument('--dataset', required=False,
-                        metavar="/path/to/aetrex/dataset/",
-                        help='Directory of the aetrex dataset')
+                        metavar="/path/to/aetrex_module/dataset/",
+                        help='Directory of the aetrex_module dataset')
     parser.add_argument('--weights', required=True,
                         metavar="/path/to/weights.h5",
                         help="Path to weights .h5 file or 'coco'")
