@@ -11,7 +11,7 @@ Usage: import the module or run from
        the command line as such:
 
     # Train a new model starting from pre-trained COCO weights
-    python3 predict.py train --aetrex_weight_path=/path/to/aetrex_module/dataset --images_dir=/path/to/dir_of_images_for prediction
+    python3 predict.py train --aetrex_weight_path=/path/to/aetrex_module/dataset --images_dir=/path/to/dir_of_images_for prediction --output_dir=/path/to/output
 """
 import os
 import sys
@@ -48,6 +48,7 @@ def get_args():
     parser = argparse.ArgumentParser(description="")
     parser.add_argument("--aetrex_weight_path", type=str, default="weights", required=True)
     parser.add_argument("--images_dir", type=str, default="images", required=True)
+    parser.add_argument("--output_dir", type=str, default="output", required=True)
     args = parser.parse_args()
     return args
 
@@ -122,7 +123,7 @@ def show_predicted_result_for_loaded_dataset():
                                                dataset.image_reference(image_id)))
 
         # uncomment below line if you wants to check single file, [..., :3] is given to ignore alpha channel if present
-        # image = skimage.io.imread('/Users/vaneesh_k/Desktop/pics/cvBufferInput1.png')[..., :3]  jgj
+        # image = skimage.io.imread('/Users/vaneesh_k/Desktop/pics/cvBufferInput1.png')[..., :3]
 
         results = model.detect([image], verbose=1)
         # Display results
@@ -137,14 +138,15 @@ def show_predicted_result_for_loaded_dataset():
         input("------------------------------------------ press enter ---------------------------------------------\n")
 
 
-def show_predicted_result_for_image_dir():
+def show_predicted_result_for_image_dir(output_dir):
     AETREX_DIR_PATH = AETREX_DIR + '/val'
     all_images_name = get_filename_list(AETREX_DIR_PATH, 'jpg')
 
     for image_name in all_images_name:
         print('---------------------------------------- Processing Image ------------------------------------------\n')
         image_path = os.path.join(AETREX_DIR_PATH, image_name)
-        print(f'-----------------------------------------Image Path : {image_path}-----------------------------------\n')
+        print(
+            f'-----------------------------------------Image Path : {image_path}-----------------------------------\n')
         image = load_image_from_path(image_path)
         results = model.detect([image], verbose=1)
         # Display results°
@@ -152,7 +154,7 @@ def show_predicted_result_for_image_dir():
         r = results[0]
         visualize.display_instances(image, r['rois'], r['masks'], r['class_ids'],
                                     dataset.class_names, r['scores'], ax=ax,
-                                    title="Predictions")
+                                    title=f'image name - {image_path}', output_path=output_dir)
         input("------------------------------------------ press enter ---------------------------------------------\n")
 
 
@@ -161,7 +163,7 @@ def main():
     setup_config_and_paths(args.aetrex_weight_path, args.images_dir)
     load_dataset_and_model()
     # show_predicted_result_for_loaded_dataset()
-    show_predicted_result_for_image_dir()
+    show_predicted_result_for_image_dir(args.output_dir)
 
 
 if __name__ == '__main__':
