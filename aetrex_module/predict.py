@@ -71,6 +71,7 @@ def get_ax(rows=1, cols=1, size=16):
     Adjust the size attribute to control how big to render images
     """
     _, ax = plt.subplots(rows, cols, figsize=(size * cols, size * rows))
+
     return ax
 
 
@@ -85,6 +86,7 @@ def load_image_from_path(image_path):
     # If has an alpha channel, remove it for consistency
     if image.shape[-1] == 4:
         image = image[..., :3]
+
     return image
 
 
@@ -145,17 +147,18 @@ def show_predicted_result_for_image_dir(output_dir):
     for image_name in all_images_name:
         print('---------------------------------------- Processing Image ------------------------------------------\n')
         image_path = os.path.join(AETREX_DIR_PATH, image_name)
-        print(
-            f'-----------------------------------------Image Path : {image_path}-----------------------------------\n')
+        print(f'---------------------------------------Image Path : {image_path}-----------------------------------\n')
         image = load_image_from_path(image_path)
         results = model.detect([image], verbose=1)
         # Display results°
         ax = get_ax(1)
         r = results[0]
+        #make output diretory by the model name
+
         visualize.display_instances(image, r['rois'], r['masks'], r['class_ids'],
                                     dataset.class_names, r['scores'], ax=ax,
                                     title=f'image name - {image_path}', output_path=output_dir)
-        input("------------------------------------------ press enter ---------------------------------------------\n")
+        # input("------------------------------------------ press enter ---------------------------------------------\n")
 
 
 def main():

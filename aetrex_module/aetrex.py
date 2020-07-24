@@ -19,6 +19,7 @@ Usage: import the module or run from
 """
 import glob
 import os
+import shutil
 import sys
 import json
 import datetime
@@ -26,12 +27,15 @@ import argparse
 import numpy as np
 import skimage.draw
 from pathlib import Path
+import random
 
 import os
 
 import mlflow.keras
 import mlflow.tensorflow
 import imgaug
+
+from aetrex_module.mask_generation import get_filename_list
 
 mlflow.keras.autolog()
 mlflow.tensorflow.autolog()
@@ -66,7 +70,7 @@ class AetrexConfig(Config):
     # Give the configuration a recognizable name
     NAME = "aetrex_module"
 
-    # We use a GPU with 12GB memory, which can fit two images.
+    # We use a GPU with 12 GB memory, which can fit two images.
     # Adjust down if you use a smaller GPU.
     IMAGES_PER_GPU = 2
 
@@ -189,18 +193,54 @@ def train(model):
     # Since we're using a very small dataset, and starting from
     # COCO trained weights, we don't need to train too long. Also,
     # no need to train all layers, just the heads should do it.
-    print("Training network heads")
+    print("Training network as whole")
 
+    # creating augmentations for tranining data using imgaug library
     augmentation = imgaug.augmenters.Sometimes(0.5, [
         imgaug.augmenters.Fliplr(0.5),
-        imgaug.augmenters.GaussianBlur(sigma=(0.0, 5.0))
+        imgaug.augmenters.GaussianBlur(sigma=(0.0, 5.0)),
+        imgaug.augmenters.Affine(rotate=(-45, 45))
     ])
 
     model.train(dataset_train, dataset_val,
-                learning_rate=config.LEARNING_RATE,
+                learning_rate=config.LEARNING_RATE / 10,
                 epochs=4000,
-                layers='heads',
+                layers='all',
                 augmentation=augmentation)
+
+
+def get_shuffled_image_and_json(dataset_path):
+    '''This Fn create and randomly shuffle all the data in train(80%) and val(20%) directory '''
+    all_json_files = [os.path.join(dataset_path, item) for item in get_filename_list(dataset_path, 'json')]
+
+    all_image_files = [file.replace('json', 'jpg') for file in all_json_files if
+                       os.path.isfile(file.replace('json', 'jpg'))]
+
+    # removing files for which we didn't have images (e.g only json is present but image file is not)
+    for idx, value in enumerate(all_json_files):
+        if not (value.replace('json', 'jpg') in all_image_files):
+            del all_json_files[idx]
+
+    files = list(zip(all_json_files, all_image_files))
+    # shuffling all the files
+    return random.shuffle(files)
+
+
+def split_dataset_in_train_val(dataset_path, files):
+    train_dir = os.path.join(dataset_path, 'train')
+    val_dir = os.path.join(dataset_path, 'val')
+    os.makedirs(train_dir, exist_ok=True)
+    os.makedirs(val_dir, exist_ok=True)
+    # creating directories for train and val
+    train_files = files[:round(len(files) * .8)]
+    val_files = files[-round(len(files) * .2):]
+    # moving the shuffled files to train and val dir
+    for file in train_files:
+        shutil.move(file[0], os.path.join(train_dir, file[0].split('/')[-1]))
+        shutil.move(file[1], os.path.join(train_dir, file[1].split('/')[-1]))
+    for file in val_files:
+        shutil.move(file[0], os.path.join(val_dir, file[0].split('/')[-1]))
+        shutil.move(file[1], os.path.join(val_dir, file[1].split('/')[-1]))
 
 
 ############################################################
@@ -208,7 +248,6 @@ def train(model):
 ############################################################
 
 if __name__ == '__main__':
-
 
     # Parse command line arguments
     parser = argparse.ArgumentParser(
@@ -286,6 +325,9 @@ if __name__ == '__main__':
 
     # Train or evaluate
     if args.command == "train":
+        # randomly split data files for train and validation
+        files = get_shuffled_image_and_json(args.dataset)
+        split_dataset_in_train_val(args.dataset, files)
         train(model)
     else:
         print("'{}' is not recognized. "
